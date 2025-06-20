@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Add your SaaS-specific relations here
+  // subscriptions Subscription[]
+  // organizations Organization[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Example additional models for SaaS
+// model Subscription {
+//   id       String   @id @default(cuid())
+//   userId   String
+//   planId   String
+//   status   SubscriptionStatus
+//   startDate DateTime
+//   endDate   DateTime?
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   
+//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   plan Plan @relation(fields: [planId], references: [id])
+//   
+//   @@map("subscriptions")
+// }
+
+// model Plan {
+//   id          String   @id @default(cuid())
+//   name        String
+//   description String?
+//   price       Decimal
+//   features    String[]
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+//   
+//   subscriptions Subscription[]
+//   
+//   @@map("plans")
+// } 
