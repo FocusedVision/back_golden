@@ -1,19 +1,24 @@
-# Dependencies
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Environment variables
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# TypeScript
-dist/
-*.tsbuildinfo
+# Logs
+logs/
+*.log
+lerna-debug.log*
+.pnpm-debug.log*
 
 # Runtime data
 pids
@@ -21,41 +26,70 @@ pids
 *.seed
 *.pid.lock
 
-# Logs
-logs
-*.log
-loglevel=silent
-
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
-
-# nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage
-.grunt
+# ESLint cache
+.eslintcache
 
-# Bower dependency directory
-bower_components
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
-# node-waf configuration
-.lock-wscript
+# Production build
+dist/
+build/
+out/
 
-# Compiled binary addons
-build/Release
+# Prisma
+# Keep schema.prisma but ignore generated client
+/prisma/generated/
 
-# Dependency directories
-jspm_packages/
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
 
-# TypeScript v1 declaration files
-typings/
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cloud credentials and keys
+*-credentials.json
+*-key.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Testing
+/coverage
+.jest/
 
 # Optional npm cache directory
 .npm
-
-# Optional eslint cache
-.eslintcache
 
 # Optional REPL history
 .node_repl_history
@@ -66,26 +100,14 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+# dotenv environment variable files
 .env
+.env.development
 .env.test
 .env.production
 
-# parcel-bundler cache
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
 # Serverless directories
-.serverless
+.serverless/
 
 # FuseBox cache
 .fusebox/
@@ -99,27 +121,70 @@ typings/
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Optional REPL history
+.node_repl_history
 
-# Database
-*.sqlite
-*.sqlite3
-*.db
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# Uploads
-uploads/
-temp/ 
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw? 
