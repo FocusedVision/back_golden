@@ -52,6 +52,7 @@ out/
 *.sqlite3
 *.db
 *.db-journal
+*.sql
 
 # IDE and editors
 .idea/
