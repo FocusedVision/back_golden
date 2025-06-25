@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,57 +7,561 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  firstName String?
-  lastName  String?
-  role      Role     @default(USER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+//==============================================================================
+// Core Tables
+//==============================================================================
 
-  // Add your SaaS-specific relations here
-  // subscriptions Subscription[]
-  // organizations Organization[]
+// Users table (Staff/admin users)
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String?
+  firstName   String?   @map("first_name")
+  lastName    String?   @map("last_name")
+  role        String    @default("staff")
+  status      String    @default("active")
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  gmbCredentials GmbCredentials?
+  messagesSent   Message[]
 
   @@map("users")
 }
 
-enum Role {
-  USER
-  ADMIN
-  SUPER_ADMIN
+// Units table (updated to match BigQuery schema)
+model Unit {
+  id                           String   @id @default(uuid())
+  facilityId                   String?  @map("facility_id")
+  facilityName                 String?  @map("facility_name")
+  unitId                       String   @unique @map("unit_id")
+  unitName                     String?  @map("unit_name")
+  unitType                     String?  @map("unit_type")
+  unitFeatures                 String?  @map("unit_features")
+  pgId                         String?  @map("pg_id")
+  pricingGroup                 String?  @map("pricing_group")
+  rateManaged                  Decimal? @map("rate_managed") @db.Decimal(10, 2)
+  unitFloorNum                 Int?     @map("unit_floor_num")
+  unitBuildingName             String?  @map("unit_building_name")
+  unitWidth                    Decimal? @map("unit_width") @db.Decimal(8, 2)
+  unitDepth                    Decimal? @map("unit_depth") @db.Decimal(8, 2)
+  unitHeight                   Decimal? @map("unit_height") @db.Decimal(8, 2)
+  isLeased                     Int?     @map("is_leased")
+  isInsurable                  Int?     @map("is_insurable")
+  isRentable                   Int?     @map("is_rentable")
+  isOverlocked                 Int?     @map("is_overlocked")
+  unitUnrentableReason         String?  @map("unit_unrentable_reason")
+  unitUnrentableNote           String?  @map("unit_unrentable_note")
+  unitKeypadZone               Int?     @map("unit_keypad_zone")
+  unitTimeZone                 Int?     @map("unit_time_zone")
+  webRateOverride              Int?     @map("web_rate_override")
+  strikethroughPriceOverride   Int?     @map("strikethrough_price_override")
+  walkInRateOverride           Int?     @map("walk_in_rate_override")
+  createdAt                    DateTime @default(now()) @map("created_at")
+  updatedAt                    DateTime @updatedAt @map("updated_at")
+
+  @@index([facilityId])
+  @@index([unitId])
+  @@index([pgId])
+  @@map("units")
 }
 
-// Example additional models for SaaS
-// model Subscription {
-//   id       String   @id @default(cuid())
-//   userId   String
-//   planId   String
-//   status   SubscriptionStatus
-//   startDate DateTime
-//   endDate   DateTime?
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//   
-//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-//   plan Plan @relation(fields: [planId], references: [id])
-//   
-//   @@map("subscriptions")
-// }
+// Contacts table (updated to match BigQuery schema)
+model Contact {
+  id          String    @id @default(uuid())
+  contactId   String    @unique @map("contact_id")
+  orgId       String    @map("org_id")
+  name        String?
+  address     String?
+  address2    String?
+  companyName String?   @map("company_name")
+  city        String?
+  state       String?
+  country     String?
+  zip         String?
+  email       String?
+  phone       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
+  leadId  String?   @map("lead_id")
+  leadSource  String?   @map("lead_source")
+  
+  @@index([contactId])
+  @@index([orgId])
+  @@index([email])
+  @@index([phone])
+  @@index([leadId])
+  @@map("contacts")
+}
 
-// model Plan {
-//   id          String   @id @default(cuid())
-//   name        String
-//   description String?
-//   price       Decimal
-//   features    String[]
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-//   
-//   subscriptions Subscription[]
-//   
-//   @@map("plans")
-// } 
+//==============================================================================
+// Business Logic Tables
+//==============================================================================
+
+// Leases table (updated to match BigQuery schema)
+model Lease {
+  id                        String    @id @default(uuid())
+  facilityName              String?   @map("facility_name")
+  facilityId                String?   @map("facility_id")
+  orgId                     String?   @map("org_id")
+  leaseId                   String    @unique @map("lease_id")
+  unitName                  String?   @map("unit_name")
+  unitId                    String?   @map("unit_id")
+  isActive                  Int?      @map("is_active")
+  leaseCreatedBy            String?   @map("lease_created_by")
+  leaseStarted              DateTime? @map("lease_started") @db.Date
+  leaseEnded                DateTime? @map("lease_ended") @db.Date
+  leaseRentOriginal         Decimal?  @map("lease_rent_original") @db.Decimal(10, 2)
+  leaseRentCurrent          Decimal?  @map("lease_rent_current") @db.Decimal(10, 2)
+  leaseRentNext             Decimal?  @map("lease_rent_next") @db.Decimal(10, 2)
+  leaseRentNextChgDate      DateTime? @map("lease_rent_next_chg_date") @db.Date
+  leaseRentLastChgDate      DateTime? @map("lease_rent_last_chg_date") @db.Date
+  leaseAllDiscounts         String?   @map("lease_all_discounts")
+  isLeasePaid               Int?      @map("is_lease_paid")
+  statusLateSinceDate       DateTime? @map("status_late_since_date") @db.Date
+  statusPaidThroughDate     DateTime? @map("status_paid_through_date") @db.Date
+  statusPaidOnDate          DateTime? @map("status_paid_on_date") @db.Date
+  isNeedsOverlock           Int?      @map("is_needs_overlock")
+  isInAuction               Int?      @map("is_in_auction")
+  isAutopayEnabled          Boolean?  @map("is_autopay_enabled")
+  insPremium                Decimal?  @map("ins_premium") @db.Decimal(10, 2)
+  insCoverageLevel          Decimal?  @map("ins_coverage_level") @db.Decimal(12, 2)
+  accessCode                String?   @map("access_code")
+  isAccessCodeEnabled       Int?      @map("is_access_code_enabled")
+  contactId                 String?   @map("contact_id")
+  contactPinnedNote         String?   @map("contact_pinned_note")
+  isMilitary                Int?      @map("is_military")
+  contactName               String?   @map("contact_name")
+  contactCompanyName        String?   @map("contact_company_name")
+  contactEmail              String?   @map("contact_email")
+  contactPhone              String?   @map("contact_phone")
+  contactAddress1           String?   @map("contact_address_1")
+  contactAddress2           String?   @map("contact_address_2")
+  contactCity               String?   @map("contact_city")
+  contactState              String?   @map("contact_state")
+  contactZip                String?   @map("contact_zip")
+  leaseLifetimePayments     Decimal?  @map("lease_lifetime_payments") @db.Decimal(12, 2)
+  balanceAr                 Decimal?  @map("balance_ar") @db.Decimal(10, 2)
+  balanceDeposit            Decimal?  @map("balance_deposit") @db.Decimal(10, 2)
+  balancePrepaid            Decimal?  @map("balance_prepaid") @db.Decimal(10, 2)
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  @@index([leaseId])
+  @@index([facilityId])
+  @@index([unitName])
+  @@index([contactId])
+  @@index([isActive])
+  @@index([leaseStarted])
+  @@index([leaseEnded])
+  @@map("leases")
+}
+
+// Payments table (updated to match BigQuery schema)
+model Payment {
+  id                   String    @id @default(uuid())
+  facilityId           String?   @map("facility_id")
+  facilityName         String?   @map("facility_name")
+  orgId                String?   @map("org_id")
+  contactId            String?   @map("contact_id")
+  contactName          String?   @map("contact_name")
+  paymentDate          DateTime? @map("payment_date") @db.Date
+  paymentDatetime      DateTime? @map("payment_datetime")
+  paymentAmount        Decimal?  @map("payment_amount") @db.Decimal(10, 2)
+  paymentType          String?   @map("payment_type")
+  paymentStatus        String?   @map("payment_status")
+  paymentMethod        String?   @map("payment_method")
+  paymentCardBrand     String?   @map("payment_card_brand")
+  paymentCardLastFour  String?   @map("payment_card_last_four")
+  paymentCheckNumber   String?   @map("payment_check_number")
+  paymentChannel       String?   @map("payment_channel")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([facilityId])
+  @@index([contactId])
+  @@index([paymentDate])
+  @@index([paymentStatus])
+  @@map("payments")
+}
+
+// Customer touches table (updated to match BigQuery schema)
+model CustomerTouch {
+  id        String    @id @default(uuid())
+  gaSession String    @unique @map("ga_session")
+  source    String?
+  gclid     String?
+  action    String?
+  createdAt DateTime? @map("created_at")
+  contactId String?   @map("contact_id")
+  leaseId   String?   @map("lease_id")
+  leadId    String?   @map("lead_id")
+  orgId     String?   @map("org_id")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([gaSession])
+  @@index([contactId])
+  @@index([leaseId])
+  @@index([leadId])
+  @@map("customer_touches")
+}
+
+//==============================================================================
+// Financial Tables
+//==============================================================================
+
+// Book entries table (updated to match BigQuery schema)
+model BookEntry {
+  id               String    @id @default(uuid())
+  facility         String?
+  entryDateTime    DateTime  @map("entry_date_time")
+  txnId            Int       @unique @map("txn_id")
+  orgId            String?   @map("org_id")
+  type             String?
+  amount           Decimal?
+  book             String?
+  leaseId          String?   @map("lease_id")
+  unit             String?
+  unitId           String?   @map("unit_id")
+  contactId        String?   @map("contact_id")
+  contactName      String?   @map("contact_name")
+  accrualStart     DateTime? @map("accrual_start") @db.Date
+  explanationText  String?   @map("explanation_text")
+  entryNum         Int?      @map("entry_num")
+  appliesTo        Int?      @map("applies_to")
+  arEntryCategory  String?   @map("ar_entry_category")
+  explanation      String?
+  taxCategory      String?   @map("tax_category")
+  taxExempt        Int?      @map("tax_exempt")
+  amtRevenue       Decimal?  @map("amt_revenue")  @db.Decimal(10, 2)
+  amtPayment       Decimal?  @map("amt_payment")  @db.Decimal(10, 2)
+  amtAsset         Decimal?  @map("amt_asset")  @db.Decimal(10, 2)
+  amtLiability     Decimal?  @map("amt_liability")  @db.Decimal(10, 2)
+  amtTransfer      Decimal?  @map("amt_transfer") @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([facility])
+  @@index([entryDateTime])
+  @@index([leaseId])
+  @@index([unit])
+  @@index([contactId])
+  @@map("book_entries")
+}
+
+// Pricing groups table (updated to match BigQuery schema)
+model PricingGroup {
+  id         String   @id @default(uuid())
+  pgId       String   @unique @map("pg_id")
+  name       String?
+  price      Decimal?
+  facilityId String?  @map("facility_id")
+  width      Decimal?
+  height     Decimal?
+  depth      Decimal?
+  features   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([pgId])
+  @@index([facilityId])
+  @@map("pricing_group")
+}
+
+//==============================================================================
+// Analytics Tables
+//==============================================================================
+
+// Google Analytics events table (updated to match BigQuery schema)
+model GaEvent {
+  id                        String   @id @default(uuid())
+  orgId                     String?  @map("org_id")
+  gaSessionId               BigInt   @unique @map("ga_session_id")
+  eventDate                 DateTime @map("event_date") @db.Date
+  eventName                 String?  @map("event_name")
+  eventTimestamp            BigInt?  @map("event_timestamp")
+  hostname                  String?
+  deviceCategory            String?  @map("device_category")
+  geoCity                   String?  @map("geo_city")
+  geoCountry                String?  @map("geo_country")
+  geoContinent              String?  @map("geo_continent")
+  geoRegion                 String?  @map("geo_region")
+  geoMetro                  String?  @map("geo_metro")
+  trafficSourceName         String?  @map("traffic_source_name")
+  trafficSourceSource       String?  @map("traffic_source_source")
+  trafficSourceMedium       String?  @map("traffic_source_medium")
+  ecommerceTransactionId    String?  @map("ecommerce_transaction_id")
+  ecommercePurchaseRevenue  Float?   @map("ecommerce_purchase_revenue")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@index([orgId])
+  @@index([eventDate])
+  @@index([eventName])
+  @@index([gaSessionId])
+  @@index([eventTimestamp])
+  @@map("ga_events")
+}
+
+//==============================================================================
+// Management Tables
+//==============================================================================
+
+// Leads table (updated to match BigQuery schema)
+model Lead {
+  id                    String    @id @default(uuid())
+  leadId                String    @unique @map("lead_id")
+  ageOfLeadMinutes      Int?      @map("age_of_lead_minutes")
+  status                String?
+  contactId             String?   @map("contact_id")
+  contactName           String?   @map("contact_name")
+  facilityId            String?   @map("facility_id")
+  facilityName          String?   @map("facility_name")
+  orgId                 String?   @map("org_id")
+  pgId                  String?   @map("pg_id")
+  pgName                String?   @map("pg_name")
+  pgFeatures            String?   @map("pg_features")
+  createdBy             String?   @map("created_by")
+  convertedBy           String?   @map("converted_by")
+  convertedDatetime     DateTime? @map("converted_datetime")
+  timeToConvert         Int?      @map("time_to_convert")
+  timeToUnqualified     Int?      @map("time_to_unqualified")
+  convertedLeaseId      Int?      @map("converted_lease_id")
+  leadSource            String?   @map("lead_source")
+  firstTouchSource      String?   @map("first_touch_source")
+  gaSource              String?   @map("ga_source")
+  source                String?
+  firstTouchAction      String?   @map("first_touch_action")
+  gaSession             String?   @map("ga_session")
+  gaSessionId           String?   @map("ga_session_id")
+  createdAt             DateTime? @map("created_at")
+  updatedAt             DateTime? @map("updated_at")
+
+  @@index([leadId])
+  @@index([contactId])
+  @@index([facilityId])
+  @@index([pgId])
+  @@index([status])
+  @@map("leads")
+}
+
+// Managers table (updated to match BigQuery schema)
+model Manager {
+  id                 String   @id @default(uuid())
+  managerId          String   @unique @map("manager_id")
+  orgId              String   @map("org_id")
+  managerName        String?  @map("manager_name")
+  managerUsername    String?  @map("manager_username")
+  managerEmail       String?  @map("manager_email")
+  managerPhone       String?  @map("manager_phone")
+  managerPermissions String?  @map("manager_permissions")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([managerId])
+  @@index([managerEmail])
+  @@map("managers")
+}
+
+//==============================================================================
+// Historical Data Tables
+//==============================================================================
+
+// Spaces historical table (updated to match BigQuery schema)
+model SpacesHistorical {
+  id                   String    @id @default(uuid())
+  date                 DateTime  @db.Date
+  orgId                String    @unique @map("org_id")
+  unitId               String?   @map("unit_id")
+  unitName             String?   @map("unit_name")
+  unitDescription      String?   @map("unit_description")
+  facilityName         String?   @map("facility_name")
+  facilityId           String?   @map("facility_id")
+  facilityAddress      String?   @map("facility_address")
+  buildingName         String?   @map("building_name")
+  isOccupied           Int?      @map("is_occupied")
+  isUnrentable         Boolean?  @map("is_unrentable")
+  unrentableReason     String?   @map("unrentable_reason")
+  unrentableReasonNote String?   @map("unrentable_reason_note")
+  width                Decimal?
+  depth                Decimal?
+  height               Decimal?
+  isOverlocked         Boolean?  @map("is_overlocked")
+  pricingGroupName     String?   @map("pricing_group_name")
+  streetRate           Decimal?  @map("street_rate")
+  pgId                 String?   @map("pg_id")
+  leaseId              String?   @map("lease_id")
+  occRate              Decimal?  @map("occ_rate")
+  occStartDt           DateTime? @map("occ_start_dt") @db.Date
+  occTenantId          Int?      @map("occ_tenant_id")
+  occTenantName        String?   @map("occ_tenant_name")
+  isAutopayEnabled     Int?      @map("is_autopay_enabled")
+  isInsuranceActive    Int?      @map("is_insurance_active")
+  contactId            String?   @map("contact_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@index([unitId])
+  @@index([facilityId])
+  @@index([orgId])
+  @@map("spaces_historical")
+}
+
+// Unit turnover table (updated to match BigQuery schema)
+model UnitTurnover {
+  id                           String    @id @default(uuid())
+  moveType                     String?   @map("move_type")
+  moveDate                     DateTime? @map("move_date") @db.Date
+  facilityId                   String?   @map("facility_id")
+  facilityName                 String?   @map("facility_name")
+  unitId                       String?   @map("unit_id")
+  unitName                     String?   @map("unit_name")
+  unitType                     String?   @map("unit_type")
+  unitFeatures                 String?   @map("unit_features")
+  unitFloorNum                 Int?      @map("unit_floor_num")
+  unitBuildingName             String?   @map("unit_building_name")
+  unitWidth                    Decimal?  @map("unit_width")
+  unitDepth                    Decimal?  @map("unit_depth")
+  unitHeight                   Decimal?  @map("unit_height")
+  leaseId                      String?   @map("lease_id")
+  leaseCreatedBy               String?   @map("lease_created_by")
+  leaseRent                    Decimal?  @map("lease_rent")
+  leaseStartDate               DateTime? @map("lease_start_date") @db.Date
+  leaseEndDate                 DateTime? @map("lease_end_date") @db.Date
+  leaseCreatedByTransfer       Boolean?  @map("lease_created_by_transfer")
+  leaseTerminatedByTransfer    String?   @map("lease_terminated_by_transfer")
+  leaseDaysRented              Int?      @map("lease_days_rented")
+  leaseDiscountsApplied        String?   @map("lease_discounts_applied")
+  insPremium                   Decimal?  @map("ins_premium")
+  insCoverageLevel             Decimal?  @map("ins_coverage_level")
+  contactId                    String?   @map("contact_id")
+  contactName                  String?   @map("contact_name")
+  contactEmail                 String?   @map("contact_email")
+  contactPhone                 String?   @map("contact_phone")
+  pgId                         String?   @map("pg_id")
+  pgName                       String?   @map("pg_name")
+  pgStandardRate               Decimal?  @map("pg_standard_rate")
+  createdAt                    DateTime  @default(now()) @map("created_at")
+  updatedAt                    DateTime  @updatedAt @map("updated_at")
+
+  @@index([moveDate])
+  @@index([facilityId])
+  @@index([unitId])
+  @@index([leaseId])
+  @@map("unit_turnover")
+}
+
+//==============================================================================
+// Integration Tables
+//==============================================================================
+
+// GMB Credentials Table
+model GmbCredentials {
+  id           Int      @id @default(autoincrement())
+  userId       String   @unique @map("user_id")
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  scope        String
+  tokenType    String   @map("token_type")
+  expiryDate   DateTime @map("expiry_date")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("gmb_credentials")
+}
+
+// Review requests table
+model ReviewRequest {
+  id                 String    @id @default(uuid())
+  placeId            String    @map("place_id")
+  tenantEmail        String    @map("tenant_email")
+  status             String    @default("pending")
+  requestDate        DateTime  @map("request_date")
+  sentDate           DateTime? @map("sent_date")
+  reviewDate         DateTime? @map("review_date")
+  reviewId           String?   @map("review_id")
+  reviewRating       Int?      @map("review_rating")
+  reviewComment      String?   @map("review_comment")
+  followUpCount      Int       @default(0) @map("follow_up_count")
+  lastFollowUpDate   DateTime? @map("last_follow_up_date")
+  expiresAt          DateTime  @map("expires_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@index([placeId, tenantEmail])
+  @@index([status])
+  @@index([requestDate])
+  @@map("review_requests")
+}
+
+// Messages table for storing communication between users and contacts
+model Message {
+  id              String       @id @default(uuid())
+  senderId        String       @map("sender_id")
+  recipientId     String       @map("recipient_id")
+  recipientType   RecipientType @map("recipient_type")
+  subject         String?
+  content         String
+  status          MessageStatus @default(UNREAD)
+  parentMessageId String?      @map("parent_message_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  sender        User     @relation(fields: [senderId], references: [id])
+  parentMessage Message? @relation("MessageReplies", fields: [parentMessageId], references: [id])
+  replies       Message[] @relation("MessageReplies")
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// Feedback table for storing feedback from tenants
+model Feedback {
+  id                        String   @id @default(uuid())
+  placeId                   String   @map("place_id")
+  tenantEmail               String   @map("tenant_email")
+  communicationRating       Int      @map("communication_rating")
+  teamFriendlinessRating    Int      @map("team_friendliness_rating")
+  facilityCleannessRating   Int      @map("facility_cleanliness_rating")
+  unitSelectionRating       Int      @map("unit_selection_rating")
+  rentalProcessRating       Int      @map("rental_process_rating")
+  overallRating             Decimal  @map("overall_rating") @db.Decimal(3, 2)
+  comments                  String?
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@index([placeId])
+  @@index([tenantEmail])
+  @@index([createdAt])
+  @@map("feedback")
+}
+
+//==============================================================================
+// Enums
+//==============================================================================
+
+enum RecipientType {
+  USER
+  CONTACT
+
+  @@map("recipient_type")
+}
+
+enum MessageStatus {
+  UNREAD
+  READ
+  ARCHIVED
+
+  @@map("message_status")
+} 

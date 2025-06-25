@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Simple logging for seed file (avoiding circular dependencies)
 const log = {
   info: (msg: string) => console.log(`[${new Date().toISOString()}] INFO  ${msg}`),
   success: (msg: string) => console.log(`[${new Date().toISOString()}] ✅    ${msg}`),
@@ -14,7 +13,6 @@ async function main(): Promise<void> {
   log.info('🌱 Starting database seeding...');
 
   try {
-    // Create super admin user
     const hashedPassword = await bcrypt.hash('SuperAdmin123!', 12);
     
     const superAdmin = await prisma.user.upsert({
@@ -32,7 +30,6 @@ async function main(): Promise<void> {
 
     log.success(`Super admin created: ${superAdmin.email}`);
 
-    // Create regular admin user
     const adminHashedPassword = await bcrypt.hash('Admin123!', 12);
     
     const admin = await prisma.user.upsert({
@@ -50,7 +47,6 @@ async function main(): Promise<void> {
 
     log.success(`Admin user created: ${admin.email}`);
 
-    // Create sample regular user
     const userHashedPassword = await bcrypt.hash('User123!', 12);
     
     const user = await prisma.user.upsert({
@@ -67,12 +63,7 @@ async function main(): Promise<void> {
     });
 
     log.success(`Regular user created: ${user.email}`);
-
-    // Add more seed data here as your schema grows
-    // For example, plans, subscriptions, etc.
-
     log.success('🎉 Database seeding completed successfully!');
-    
     log.info('\n📋 Default users created:');
     log.info('Super Admin: admin@goldensaas.com / SuperAdmin123!');
     log.info('Admin: moderator@goldensaas.com / Admin123!');

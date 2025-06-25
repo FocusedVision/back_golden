@@ -1,9 +1,73 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/authService";
-import { RegisterRequest } from "../types";
+import { RegisterRequest, AuthenticatedRequest } from "../types";
 import logger from "../utils/logger";
 
 export class AuthController {
+  /**
+   * Login user
+   */
+  static async login(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, password, remember = false } = req.body;
+
+      const result = await AuthService.login(email, password, remember);
+
+      if (result.success) {
+        logger.success("User login successful", {
+          email,
+          userId: result.data?.user?.id,
+        });
+
+        res.json(result);
+      } else {
+        logger.auth("User login failed", {
+          email,
+          message: result.message,
+        });
+
+        res.status(401).json(result);
+      }
+    } catch (error) {
+      logger.error("Login controller error", error as Error, {
+        email: req.body?.email,
+        ip: req.ip,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: "Internal server error during login",
+      });
+    }
+  }
+
+  /**
+   * Logout user
+   */
+  static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      logger.auth("User logout", {
+        userId: req.user?.userId,
+        email: req.user?.email,
+      });
+
+      res.json({
+        success: true,
+        message: "Logged out successfully",
+      });
+    } catch (error) {
+      logger.error("Logout controller error", error as Error, {
+        userId: req.user?.userId,
+        ip: req.ip,
+      });
+
+      res.status(500).json({
+        success: false,
+        message: "Internal server error during logout",
+      });
+    }
+  }
+
   /**
    * Register a new user
    */
@@ -26,14 +90,14 @@ export class AuthController {
           userId: result.data?.user?.id,
         });
 
-        res.status(201).json(result);
+        res.json(result);
       } else {
         logger.auth("User registration failed", {
           email: registerData.email,
           errors: result.errors,
         });
 
-        res.status(400).json(result);
+        res.json(result);
       }
     } catch (error) {
       logger.error("Registration controller error", error as Error, {
@@ -41,7 +105,7 @@ export class AuthController {
         ip: req.ip,
       });
 
-      res.status(500).json({
+      res.json({
         success: false,
         message: "Internal server error during registration",
       });

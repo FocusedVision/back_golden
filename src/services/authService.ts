@@ -18,6 +18,104 @@ export class AuthService {
   private static readonly SALT_ROUNDS = 12;
   private static readonly JWT_EXPIRY = "7d";
 
+  static async login(
+    email: string,
+    password: string,
+    remember: boolean = false,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+      user: SafeUser;
+      token: string;
+      refreshToken?: string;
+      expiresIn: number;
+    };
+  }> {
+    logger.auth("Starting user login process", { email });
+
+    try {
+      // Find user by email
+      const user = await prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+      });
+
+      if (!user) {
+        logger.auth("Login attempt with non-existent email", { email });
+        return {
+          success: false,
+          message: "Invalid email or password",
+        };
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        logger.auth("Login attempt with inactive account", {
+          email,
+          userId: user.id,
+        });
+        return {
+          success: false,
+          message: "Account is deactivated. Please contact support.",
+        };
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        logger.auth("Login attempt with invalid password", {
+          email,
+          userId: user.id,
+        });
+        return {
+          success: false,
+          message: "Invalid email or password",
+        };
+      }
+
+      // Generate token with appropriate expiry
+      const tokenExpiry = remember ? "30d" : this.JWT_EXPIRY;
+      const token = this.generateTokenWithExpiry(user, tokenExpiry);
+
+      // Calculate expires in seconds
+      const expiresIn = remember ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // 30 days or 7 days
+
+      const userData = {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role as UserRole,
+          isActive: user.isActive,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+        token,
+        expiresIn,
+      };
+
+      logger.success("User login completed successfully", {
+        userId: user.id,
+        email: user.email,
+        remember,
+      });
+
+      return {
+        success: true,
+        message: "Login successful",
+        data: userData,
+      };
+    } catch (error) {
+      logger.error("Login failed", error as Error, { email });
+      return {
+        success: false,
+        message: "Login failed due to an unexpected error",
+      };
+    }
+  }
+
   static async register(request: RegisterRequest): Promise<RegisterResponse> {
     logger.auth("Starting user registration process", { email: request.email });
 
@@ -154,6 +252,32 @@ export class AuthService {
 
       logger.auth("Generating JWT token for user", { userId: user.id });
       return jwt.sign(payload, secret, { expiresIn: this.JWT_EXPIRY });
+    } catch (error) {
+      logger.error("JWT token generation failed", error as Error);
+      throw new Error("Failed to generate authentication token");
+    }
+  }
+
+  private static generateTokenWithExpiry(
+    user: SafeUser | any,
+    expiry: string,
+  ): string {
+    try {
+      const payload: JWTPayload = {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      };
+
+      const secret = process.env["JWT_SECRET"];
+      if (!secret) {
+        throw new Error("JWT_SECRET environment variable is not set");
+      }
+
+      logger.auth("Generating JWT token for user", { userId: user.id, expiry });
+      return jwt.sign(payload, secret, {
+        expiresIn: expiry,
+      } as jwt.SignOptions);
     } catch (error) {
       logger.error("JWT token generation failed", error as Error);
       throw new Error("Failed to generate authentication token");

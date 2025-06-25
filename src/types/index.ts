@@ -30,6 +30,20 @@ export interface SafeUser {
   updatedAt: Date;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+  remember?: boolean;
+}
+
+export interface LoginResponse
+  extends ApiResponse<{
+    user: SafeUser;
+    token: string;
+    refreshToken?: string;
+    expiresIn: number;
+  }> {}
+
 export interface RegisterRequest {
   email: string;
   password: string;
